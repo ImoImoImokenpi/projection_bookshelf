@@ -1,33 +1,86 @@
-import React, { useState } from "react";
-import Navbar from "../components/Navbar"; 
+import React, { useEffect, useState } from "react";
+import Navbar from "../components/Navbar";
 import Hand from "../components/Hand";
 
-function Search({ myBooks, setMyBooks }) {
+function Search() {
     const [query, setQuery] = useState("");
     const [books, setBooks] = useState([]);
+    const [myBooks, setMyBooks] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const handleSearch = async () => {
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const perPage = 20;
+
+    // 初回ロードで手元本を取得
+    useEffect(() => {
+        fetchMyBooks();
+    }, []);
+
+    const fetchMyBooks = async () => {
+        try {
+            const res = await fetch("http://127.0.0.1:8000/mybooks");
+            const data = await res.json();
+            setMyBooks(data.books || []);
+        } catch (err) {
+            console.error("手元本取得エラー:", err);
+        }
+    };
+
+    // --- 検索 ---
+    const handleSearch = async (p = 1) => {
         if (!query.trim()) return;
         setLoading(true);
         try {
-            const res = await fetch(`http://127.0.0.1:8000/search_books?q=${encodeURIComponent(query)}`);
+            const res = await fetch(
+                `http://127.0.0.1:8000/search_books?q=${encodeURIComponent(query)}&page=${p}&per_page=${perPage}`
+            );
             const data = await res.json();
-            setBooks(data.books || []);
+
+            // すべての書籍をそのまま使用（ID があれば管理可能）
+            const validBooks = (data.books || []).filter(b => b.id);
+
+            setBooks(validBooks);
+            setPage(data.page || p);
+            setTotalPages(data.total_pages || 1);
         } catch (error) {
             console.error("検索エラー:", error);
         }
         setLoading(false);
     };
 
-    const addToMyBooks = (book) => {
-        if (!myBooks.some(b => b.isbn === book.isbn)) {
-            setMyBooks([...myBooks, book]);
+    // --- 手元に追加 ---
+    const addToMyBooks = async (book) => {
+        if (!book.id) {
+            alert("書籍IDが見つかりません。");
+            return;
+        }
+
+        try {
+            const res = await fetch("http://127.0.0.1:8000/add_to_mybooks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(book),
+            });
+            const data = await res.json();
+            alert(data.message || "手元に追加しました！");
+
+            // 最新の手元データを取得
+            fetchMyBooks();
+        } catch (error) {
+            console.error("保存エラー:", error);
+            alert("サーバーへの保存に失敗しました。");
         }
     };
 
     const viewDetails = (book) => {
-        alert(`タイトル: ${book.title}\n著者: ${book.author}\nISBN: ${book.isbn}`);
+        alert(
+            `📘 タイトル: ${book.title}\n` +
+            `👤 著者: ${book.author}\n` +
+            `ID: ${book.id}\n` +
+            `ISBN-13: ${book.isbn_13 || "不明"}\n` +
+            `ISBN-10: ${book.isbn_10 || "不明"}`
+        );
     };
 
     return (
@@ -35,6 +88,7 @@ function Search({ myBooks, setMyBooks }) {
             <Navbar myBooks={myBooks} />
             <h1>本を探す</h1>
 
+            {/* 検索フォーム */}
             <div style={{ marginBottom: "20px" }}>
                 <input
                     type="text"
@@ -50,7 +104,7 @@ function Search({ myBooks, setMyBooks }) {
                     }}
                 />
                 <button
-                    onClick={handleSearch}
+                    onClick={() => handleSearch(1)}
                     style={{
                         padding: "8px 16px",
                         borderRadius: "5px",
@@ -67,63 +121,112 @@ function Search({ myBooks, setMyBooks }) {
             {loading ? (
                 <p>検索中...</p>
             ) : (
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                        gap: "20px",
-                    }}
-                >
-                    {books.length === 0 ? (
-                        <p>検索結果がありません。</p>
-                    ) : (
-                        books.map((book, index) => (
-                            <div
-                                key={index}
-                                style={{
-                                    border: "1px solid #ddd",
-                                    borderRadius: "10px",
-                                    padding: "10px",
-                                    textAlign: "center",
-                                    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-                                }}
-                            >
-                                {book.cover ? (
-                                    <img
-                                        src={book.cover}
-                                        alt={book.title}
-                                        style={{ width: "100px", height: "150px", objectFit: "cover" }}
-                                        onError={(e) => (e.target.style.display = "none")}
-                                    />
-                                ) : (
-                                    <div
-                                        style={{
-                                            width: "100px",
-                                            height: "150px",
-                                            backgroundColor: "#f0f0f0",
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "#888",
-                                            fontSize: "12px",
-                                        }}
-                                    >
-                                        No Image
+                <>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                            gap: "20px",
+                        }}
+                    >
+                        {books.length === 0 ? (
+                            <p>検索結果がありません。</p>
+                        ) : (
+                            books.map((book, index) => (
+                                <div
+                                    key={book.id}
+                                    style={{
+                                        border: "1px solid #ddd",
+                                        borderRadius: "10px",
+                                        padding: "10px",
+                                        textAlign: "center",
+                                        boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                                        transition: "transform 0.2s",
+                                    }}
+                                >
+                                    {book.cover ? (
+                                        <img
+                                            src={book.cover}
+                                            alt={book.title}
+                                            style={{ width: "100px", height: "150px", objectFit: "cover", borderRadius: "5px" }}
+                                            onError={(e) => (e.target.style.display = "none")}
+                                        />
+                                    ) : (
+                                        <div
+                                            style={{
+                                                width: "100px",
+                                                height: "150px",
+                                                backgroundColor: "#f0f0f0",
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                color: "#888",
+                                                fontSize: "12px",
+                                            }}
+                                        >
+                                            No Image
+                                        </div>
+                                    )}
+                                    <h3 style={{ fontSize: "14px", marginTop: "10px" }}>{book.title}</h3>
+                                    <p style={{ fontSize: "12px", color: "#555" }}>{book.author}</p>
+
+                                    <div style={{ marginTop: "10px" }}>
+                                        <button
+                                            onClick={() => viewDetails(book)}
+                                            style={{
+                                                marginRight: "6px",
+                                                padding: "5px 10px",
+                                                borderRadius: "5px",
+                                                border: "1px solid #ccc",
+                                                background: "#fff",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            詳細
+                                        </button>
+                                        <button
+                                            onClick={() => addToMyBooks(book)}
+                                            style={{
+                                                padding: "5px 10px",
+                                                borderRadius: "5px",
+                                                border: "none",
+                                                backgroundColor: "#28a745",
+                                                color: "white",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            ＋ 手元に入れる
+                                        </button>
                                     </div>
-                                )}
-                                <h3 style={{ fontSize: "14px", marginTop: "10px" }}>{book.title}</h3>
-                                <p style={{ fontSize: "12px", color: "#555" }}>{book.author}</p>
-                                <div>
-                                    <button onClick={() => viewDetails(book)}>詳細を見る</button>
-                                    <button onClick={() => addToMyBooks(book)}>手元に入れる</button>
                                 </div>
-                            </div>
-                        ))
+                            ))
+                        )}
+                    </div>
+
+                    {/* ページネーション */}
+                    {books.length > 0 && (
+                        <div style={{ marginTop: "20px", textAlign: "center" }}>
+                            <button
+                                onClick={() => handleSearch(page - 1)}
+                                disabled={page <= 1}
+                                style={{ marginRight: "10px" }}
+                            >
+                                前へ
+                            </button>
+                            <span>{page} / {totalPages}</span>
+                            <button
+                                onClick={() => handleSearch(page + 1)}
+                                disabled={page >= totalPages}
+                                style={{ marginLeft: "10px" }}
+                            >
+                                次へ
+                            </button>
+                        </div>
                     )}
-                </div>
+                </>
             )}
 
-            {/* 右下フローティング */}
+            {/* 右下フローティングカウンター */}
             <div style={{ position: "fixed", right: "20px", bottom: "20px", zIndex: 100 }}>
                 <Hand myBooks={myBooks} />
             </div>
