@@ -1,7 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-function Hand({ myBooks }) {
+function Hand({ myHand, setMyHand }) {
     const [open, setOpen] = useState(false);
+
+    const handleDragStart = (e, book) => {
+        e.dataTransfer.setData("bookId", book.id);
+
+        const img = new Image();
+        img.src = book.cover || "/no-image.png";
+        img.width = 40;
+        img.height = 60;
+        e.dataTransfer.setDragImage(img, 20, 30);
+    };
 
     return (
         <div style={{ position: "relative" }}>
@@ -18,7 +28,7 @@ function Hand({ myBooks }) {
                 }}
                 onClick={() => setOpen(!open)}
             >
-                ✋ {myBooks.length}
+                ✋ {myHand.length}
             </div>
 
             {/* 展開リスト */}
@@ -38,18 +48,21 @@ function Hand({ myBooks }) {
                         zIndex: 100,
                     }}
                 >
-                    {myBooks.length === 0 ? (
+                    {myHand.length === 0 ? (
                         <p>手元の本はありません</p>
                     ) : (
                         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                            {myBooks.map((b) => (
+                            {myHand.map((b) => (
                                 <li
-                                    key={String(b.id)} // ID を文字列化して厳密比較対応
+                                    key={String(b.id)}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, b)}
                                     style={{
                                         display: "flex",
                                         alignItems: "center",
                                         borderBottom: "1px solid #eee",
                                         padding: "8px 0",
+                                        cursor: "grab",
                                     }}
                                 >
                                     {/* 表紙画像 */}
