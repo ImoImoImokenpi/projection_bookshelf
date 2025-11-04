@@ -42,14 +42,14 @@ def get_mybooks(db: Session = Depends(get_db)):
 
 # --- 手元の本の数をカウント ---
 @app.get("/myhand/count")
-def get_mybook_count(db: Session = Depends(get_db)):
+def get_myhand_count(db: Session = Depends(get_db)):
     """現在の手元の本の数を返す"""
     count = db.query(MyHand).count()
     return {"count": count}
 
 # --- 手元の本に本を追加 ---
 @app.post("/add_to_myhand")
-def add_to_mybooks(book: dict, db: Session = Depends(get_db)):
+def add_to_myhand(book: dict, db: Session = Depends(get_db)):
     """手元の本をSQLiteに保存（IDベース）"""
     book_id = book.get("id")
     if not book_id:
@@ -106,10 +106,28 @@ def search_books(q: str = Query(...), page: int = 1, per_page: int = 20):
         "total_pages": total_pages
     }
 
-# --- 本棚内の本を取得 ---
 @app.get("/bookshelf/books")
 def get_bookshelf_books(db: Session = Depends(get_db)):
-    return
+    results = (
+        db.query(MyBooks, BookPosition)
+        .join(BookPosition, MyBooks.id == BookPosition.mybook_id)
+        .all()
+    )
+
+    books = []
+    for book, pos in results:
+        books.append({
+            "id": book.id,
+            "book_id": book.book_id,
+            "title": book.title,
+            "author": book.author,
+            "cover": book.cover,
+            "x": pos.x,
+            "y": pos.y,
+            "shelfIndex": pos.shelf_index,
+            "orderIndex": pos.order_index,
+        })
+    return {"books": books}
 
 # --- 手元→棚 追加 ---
 @app.post("/bookshelf/add_book")
@@ -173,3 +191,23 @@ def add_book_to_shelf(
             }
         }
     }
+
+@app.patch("/bookshelf/update_positions")
+def update_positions(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """複数の本の位置情報をまとめて更新"""
+    positions = payload.get("positions", [])
+    if not positions:
+        raise HTTPException(status_code=400, detail="positionsが空です")
+
+    for p in positions:
+        pos = db.query(BookPosition).filter(BookPosition.mybook_id == p["mybook_id"]).first()
+        if not pos:
+            continue
+        pos.shelf_index = p["shelf_index"]
+        pos.order_index = p["order_index"]
+        pos.x = p["x"]
+        pos.y = p["y"]
+
+    db.commit()
+    return {"message": f"{len(positions)}件の位置を更新しました"}
+
