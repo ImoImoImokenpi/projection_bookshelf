@@ -7,7 +7,7 @@ export default function Navbar() {
     const links = [
         { path: "/", label: "My本棚" },
         { path: "/Search", label: "本を探す" },
-        { path: "/BigShelf", label: "プロジェクション本棚" },
+        { path: "/Explore", label: "プロジェクション本棚" },
     ];
 
     return (

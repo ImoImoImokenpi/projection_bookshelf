@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
-import Hand from "../components/Hand";
+import Layout from "../components/Layout";
 
 function Search() {
     const [query, setQuery] = useState("");
@@ -28,7 +27,7 @@ function Search() {
     };
 
     // --- 検索 ---
-    const handleSearch = async (p = 1) => {
+    const handleSearch = async (p) => {
         if (!query.trim()) return;
         setLoading(true);
         try {
@@ -38,7 +37,7 @@ function Search() {
             const data = await res.json();
             const validBooks = (data.books || []).filter(b => b.id);
             setBooks(validBooks);
-            setPage(data.page || p);
+            setPage(p);
             setTotalPages(data.total_pages || 1);
         } catch (error) {
             console.error("検索エラー:", error);
@@ -79,87 +78,155 @@ function Search() {
     };
 
     return (
-        <div style={{ position: "relative" }}>
-            <Navbar myHand={myHand} setMyHand={setMyHand} />
+        <Layout myHand={myHand} setMyHand={setMyHand}>
             <h1>本を探す</h1>
-
             {/* 検索フォーム */}
-            <div style={{ marginBottom: "20px" }}>
+            <div style={{ marginBottom: "30px" }}>
                 <input
                     type="text"
                     placeholder="書名で検索..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    style={{ padding: "8px", width: "300px", border: "1px solid #ccc", borderRadius: "5px", marginRight: "10px" }}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch(1)}
+                    style={{
+                        padding: "10px",
+                        width: "300px",
+                        border: "1px solid #ccc",
+                        borderRadius: "6px",
+                        marginRight: "10px",
+                        fontSize: "14px",
+                    }}
                 />
                 <button
                     onClick={() => handleSearch(1)}
-                    style={{ padding: "8px 16px", borderRadius: "5px", border: "none", backgroundColor: "#007bff", color: "white", cursor: "pointer" }}
+                    style={{
+                        padding: "10px 20px",
+                        borderRadius: "6px",
+                        border: "none",
+                        backgroundColor: "#007bff",
+                        color: "white",
+                        cursor: "pointer",
+                    }}
                 >
                     検索
                 </button>
             </div>
 
-            {loading ? (
-                <p>検索中...</p>
-            ) : (
-                <>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "20px" }}>
-                        {books.length === 0 ? (
-                            <p>検索結果がありません。</p>
-                        ) : (
-                            books.map((book) => (
-                                <div key={book.id} style={{ border: "1px solid #ddd", borderRadius: "10px", padding: "10px", textAlign: "center", boxShadow: "0 2px 5px rgba(0,0,0,0.1)", transition: "transform 0.2s" }}>
-                                    {book.cover ? (
-                                        <img
-                                            src={book.cover}
-                                            alt={book.title}
-                                            style={{ width: "100px", height: "150px", objectFit: "cover", borderRadius: "5px" }}
-                                            onError={(e) => (e.target.style.display = "none")}
-                                        />
-                                    ) : (
-                                        <div style={{ width: "100px", height: "150px", backgroundColor: "#f0f0f0", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: "12px" }}>
-                                            No Image
+                {/* 検索結果 */}
+                {loading ? (
+                    <p>検索中...</p>
+                ) : (
+                    <>
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                                gap: "20px",
+                                width: "100%",
+                            }}
+                        >
+                            {books.length === 0 ? (
+                                <p>検索結果がありません。</p>
+                            ) : (
+                                books.map((book) => (
+                                    <div
+                                        key={book.id}
+                                        style={{
+                                            border: "1px solid #ddd",
+                                            borderRadius: "10px",
+                                            padding: "10px",
+                                            textAlign: "center",
+                                            boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                                            transition: "transform 0.2s",
+                                        }}
+                                    >
+                                        {book.cover ? (
+                                            <img
+                                                src={book.cover}
+                                                alt={book.title}
+                                                style={{
+                                                    width: "100px",
+                                                    height: "150px",
+                                                    objectFit: "cover",
+                                                    borderRadius: "5px",
+                                                }}
+                                                onError={(e) => (e.target.style.display = "none")}
+                                            />
+                                        ) : (
+                                            <div
+                                                style={{
+                                                    width: "100px",
+                                                    height: "150px",
+                                                    backgroundColor: "#f0f0f0",
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    color: "#888",
+                                                    fontSize: "12px",
+                                                }}
+                                            >
+                                                No Image
+                                            </div>
+                                        )}
+                                        <h3 style={{ fontSize: "14px", marginTop: "10px" }}>{book.title}</h3>
+                                        <p style={{ fontSize: "12px", color: "#555" }}>{book.author}</p>
+
+                                        <div style={{ marginTop: "10px" }}>
+                                            <button
+                                                onClick={() => viewDetails(book)}
+                                                style={{
+                                                    marginRight: "6px",
+                                                    padding: "5px 10px",
+                                                    borderRadius: "5px",
+                                                    border: "1px solid #ccc",
+                                                    background: "#fff",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                詳細
+                                            </button>
+                                            <button
+                                                onClick={() => addToMyHand(book)}
+                                                style={{
+                                                    padding: "5px 10px",
+                                                    borderRadius: "5px",
+                                                    border: "none",
+                                                    backgroundColor: "#28a745",
+                                                    color: "white",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                ＋ 手元に入れる
+                                            </button>
                                         </div>
-                                    )}
-                                    <h3 style={{ fontSize: "14px", marginTop: "10px" }}>{book.title}</h3>
-                                    <p style={{ fontSize: "12px", color: "#555" }}>{book.author}</p>
-
-                                    <div style={{ marginTop: "10px" }}>
-                                        <button
-                                            onClick={() => viewDetails(book)}
-                                            style={{ marginRight: "6px", padding: "5px 10px", borderRadius: "5px", border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
-                                        >
-                                            詳細
-                                        </button>
-                                        <button
-                                            onClick={() => addToMyHand(book)}
-                                            style={{ padding: "5px 10px", borderRadius: "5px", border: "none", backgroundColor: "#28a745", color: "white", cursor: "pointer" }}
-                                        >
-                                            ＋ 手元に入れる
-                                        </button>
                                     </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* ページネーション */}
-                    {books.length > 0 && (
-                        <div style={{ marginTop: "20px", textAlign: "center" }}>
-                            <button onClick={() => handleSearch(page - 1)} disabled={page <= 1} style={{ marginRight: "10px" }}>前へ</button>
-                            <span>{page} / {totalPages}</span>
-                            <button onClick={() => handleSearch(page + 1)} disabled={page >= totalPages} style={{ marginLeft: "10px" }}>次へ</button>
+                                ))
+                            )}
                         </div>
-                    )}
-                </>
-            )}
 
-            {/* 右下フローティング */}
-            <div style={{ position: "fixed", right: "20px", bottom: "20px", zIndex: 100 }}>
-                <Hand myHand={myHand} setMyHand={setMyHand} />
-            </div>
-        </div>
+                        {/* ページネーション */}
+                        {books.length > 0 && (
+                            <div style={{ marginTop: "20px", textAlign: "center" }}>
+                                <button
+                                    onClick={() => handleSearch(page - 1)}
+                                    disabled={page <= 1}
+                                    style={{ marginRight: "10px" }}
+                                >
+                                    前へ
+                                </button>
+                                <span>{page} / {totalPages}</span>
+                                <button
+                                    onClick={() => handleSearch(page + 1)}
+                                    disabled={page >= totalPages}
+                                    style={{ marginLeft: "10px" }}
+                                >
+                                    次へ
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
+        </Layout>
     );
 }
 
